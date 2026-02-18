@@ -1,0 +1,25 @@
+CREATE DATABASE STONKS;
+USE STONKS;
+
+CREATE TABLE USERS
+(
+	Email VARCHAR(15) NOT NULL,
+    PassW VARCHAR(15) NOT NULL,
+    id CHAR(9) NOT NULL,
+    PRIMARY KEY(id)
+
+);
+
+CREATE TABLE STOCKS
+(
+	Token CHAR(4) NOT NULL,
+    Price INT(255) NOT NULL,
+    ChangeInPrice INT(255) NOT NULL,
+    MarketCap INT (255) NOT NULL,
+    Volume INT (255) NOT NULL,
+    peRatio INT (255) NOT NULL
+);
+
+
+INSERT INTO USERS(Email, PassW, id) VALUES ('b1@gmail.com', 'hello1', '1010109nj');
+
