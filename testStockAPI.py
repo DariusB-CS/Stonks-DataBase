@@ -1,7 +1,8 @@
 import yfinance as yf
 import requests
 import pandas as pd
-import mysql.connector
+#import mysql.connector
+from sqlalchemy import create_engine # make sure to also pip install pymysql
 import bs4 as bs
 
 #def get_alpha_vantage_symbols(api_key): # Gets all the tickers from a website might have to figure out how to limit it
@@ -39,14 +40,20 @@ df.set_index('Date', inplace=True)
 
 print(df.head()) # Gets the tail end of all the data
 df.to_csv('sp500_stocks.csv', mode='w+')
-# Connecting from the server
+# Connecting to the server
 
 #conn = mysql.connector.connect(user = 'root', # Connects to mydatabase
  #                              host = 'localhost',
-  #                             passwd = 'YOURPASSWORD',
+  #                             passwd = 'canttouchthis',
    #                           database = 'STONKS')
-#print(conn)
 
-# Disconnecting from the server
-#conn.close()
+engine = create_engine('mysql+pymysql://root:YOURPASSWORD@localhost/STONKS')
+conn = engine.connect()
+
+print(conn)
+
+
+df.to_sql('TEST', conn, if_exists = 'replace', index = False)
+
+conn.close() # Disconnecting from the server
 
