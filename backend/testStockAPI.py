@@ -4,6 +4,7 @@ import pandas as pd
 #import mysql.connector
 from sqlalchemy import create_engine # make sure to also pip install pymysql
 import bs4 as bs
+from flask import Flask
 
 #def get_alpha_vantage_symbols(api_key): # Gets all the tickers from a website might have to figure out how to limit it
  #   url = f'https://www.alphavantage.co/query?function=LISTING_STATUS&apikey={api_key}'
@@ -35,25 +36,39 @@ for row in table.find_all('tr')[1:]: # tr is the table row and you skip that fir
 tickers = [s.replace('\n', '') for s in tickers] # Remove the newline character from each ticker name
 
 data = yf.download(tickers, period ='1d', auto_adjust = False) # Get the full ticker information from yfinance
-df = data.stack().reset_index().rename(index=str, columns={"level_1": "Ticker"}).sort_values(['Ticker','Date']) # Trying to make it look better and more organized
-df.set_index('Date', inplace=True)
+print(data.head())
+df = data.stack().reset_index().rename(index=str, columns={"level_1": "Ticker"}).sort_values(['Ticker']) # Trying to make it look better and more organized
+
+df = df.drop("Date", axis = 1)
+
 
 print(df.head()) # Gets the tail end of all the data
 df.to_csv('sp500_stocks.csv', mode='w+')
+print(df.info())
+
 # Connecting to the server
 
 #conn = mysql.connector.connect(user = 'root', # Connects to mydatabase
  #                              host = 'localhost',
-  #                             passwd = 'canttouchthis',
+  #                             passwd = '',
    #                           database = 'STONKS')
 
-engine = create_engine('mysql+pymysql://root:YOURPASSWORD@localhost/STONKS')
-conn = engine.connect()
+#engine = create_engine('mysql+pymysql://root:YOURPASSWORD@localhost/STONKS')
+#conn = engine.connect()
 
-print(conn)
+#print(conn)
 
 
-df.to_sql('TEST', conn, if_exists = 'replace', index = False)
+#df.to_sql('TEST', conn, if_exists = 'replace', index = False)
 
-conn.close() # Disconnecting from the server
+#conn.close() # Disconnecting from the server
 
+#app = Flask(__name__)
+#@app.route("/stocks")
+
+#def stocks():
+ #   return data.to_dict()
+
+
+#if __name__ == "__main__":
+ #   app.run(debug=True)
