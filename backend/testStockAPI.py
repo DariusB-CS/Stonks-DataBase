@@ -44,7 +44,6 @@ df = df.drop("Date", axis = 1) # Dropping the date because it isn't needed and m
 
 print(df.head()) # Gets the tail end of all the data
 df.to_csv('sp500_stocks.csv', mode='w+') # Putting it into a csv file for us to see
-
 # Connecting to the server
 
 #conn = mysql.connector.connect(user = 'root', # Connects to mydatabase
@@ -66,8 +65,8 @@ app = Flask(__name__) # Initiating the flask
 @app.route("/stocks") # Making the route from the main website
 
 def stocks(): # Calling the website function
-    return df.to_html() # Making the pandas dataframe into an html thingy
-
+  #return df.to_html() # Making the pandas dataframe into an html thingy
+  return df.to_json()
 
 if __name__ == "__main__": # Running the app in debug mode
   app.run(debug=True)
