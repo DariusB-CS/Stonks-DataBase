@@ -39,18 +39,17 @@ data = yf.download(tickers, period ='1d', auto_adjust = False) # Get the full ti
 print(data.head())
 df = data.stack().reset_index().rename(index=str, columns={"level_1": "Ticker"}).sort_values(['Ticker']) # Trying to make it look better and more organized
 
-df = df.drop("Date", axis = 1)
+df = df.drop("Date", axis = 1) # Dropping the date because it isn't needed and might give an error
 
 
 print(df.head()) # Gets the tail end of all the data
-df.to_csv('sp500_stocks.csv', mode='w+')
-print(df.info())
+df.to_csv('sp500_stocks.csv', mode='w+') # Putting it into a csv file for us to see
 
 # Connecting to the server
 
 #conn = mysql.connector.connect(user = 'root', # Connects to mydatabase
  #                              host = 'localhost',
-  #                             passwd = '',
+  #                             passwd = 'YOURPASSWORD',
    #                           database = 'STONKS')
 
 #engine = create_engine('mysql+pymysql://root:YOURPASSWORD@localhost/STONKS')
@@ -63,12 +62,12 @@ print(df.info())
 
 #conn.close() # Disconnecting from the server
 
-#app = Flask(__name__)
-#@app.route("/stocks")
+app = Flask(__name__) # Initiating the flask
+@app.route("/stocks") # Making the route from the main website
 
-#def stocks():
- #   return data.to_dict()
+def stocks(): # Calling the website function
+    return df.to_html() # Making the pandas dataframe into an html thingy
 
 
-#if __name__ == "__main__":
- #   app.run(debug=True)
+if __name__ == "__main__": # Running the app in debug mode
+  app.run(debug=True)
