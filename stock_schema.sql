@@ -22,5 +22,5 @@ CREATE TABLE STOCKS
 );
 
 INSERT INTO USERS(UserN, PassW) VALUES
-				("admin", "guy");
+				("admin", "guy")UserNUserNPassWUSERS;
 
