@@ -65,6 +65,11 @@ response = (supabase.table("users")
 )
 table_df = pd.DataFrame(response.data)
 
+# Round numeric columns to match Supabase types
+df["price"] = df["price"].round(2)
+df["change_in_price"] = df["change_in_price"].round(2)
+df["volume"] = df["volume"].astype(int)
+
 # Upload stock data to Supabase
 response = (
     supabase.table("stocks")
