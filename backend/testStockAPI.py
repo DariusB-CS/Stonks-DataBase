@@ -1,8 +1,7 @@
 import yfinance as yf
 import requests
 import pandas as pd
-#import mysql.connector
-from sqlalchemy import create_engine # make sure to also pip install pymysql
+from sqlalchemy import create_engine
 import bs4 as bs
 from flask import Flask, request, render_template, url_for, redirect, session
 import bcrypt
@@ -11,73 +10,91 @@ import os
 from dotenv import load_dotenv, dotenv_values
 load_dotenv()
 
-headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15 Ddg/18.6'} # Make sure you change the user agent to fit your browser
-resp = requests.get('http://en.wikipedia.org/wiki/List_of_S%26P_500_companies' , headers=headers) # Get the website information from wikipedia
-soup = bs.BeautifulSoup(resp.text, 'lxml') # Parse it using beautiful soup to get the html information
-table = soup.find('table') # Find the table that has the S&P 500 tickers
+headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15 Ddg/18.6'}
+resp = requests.get('http://en.wikipedia.org/wiki/List_of_S%26P_500_companies', headers=headers)
+soup = bs.BeautifulSoup(resp.text, 'lxml')
+table = soup.find('table')
 
 tickers = []
+for row in table.find_all('tr')[1:]:
+    ticker = row.find_all('td')[0].text
+    tickers.append(ticker)
+tickers = [s.replace('\n', '') for s in tickers]
 
-for row in table.find_all('tr')[1:]: # tr is the table row and you skip that first row
-    ticker = row.find_all('td')[0].text # td [0] gives you the first column which is the ticker name
-    tickers.append(ticker) 
-tickers = [s.replace('\n', '') for s in tickers] # Remove the newline character from each ticker name
-
-data = yf.download(tickers, period ='1d', auto_adjust = False) # Get the full ticker information from yfinance
+data = yf.download(tickers, period='1d', auto_adjust=False)
 print(data.head())
-df = data.stack().reset_index().rename(index=str, columns={"level_1": "Ticker"}).sort_values(['Ticker']) # Trying to make it look better and more organized
-df = df.drop("Date", axis = 1) # Dropping the date because it isn't needed and might give an error
+df = data.stack().reset_index().rename(index=str, columns={"level_1": "Ticker"}).sort_values(['Ticker'])
+df = df.drop("Date", axis=1)
 df = df.dropna()
-print(df.head()) # Gets the tail end of all the data
+print(df.head())
 
-url: str = os.environ.get("SUPABASE_URL") #gets the username and key from the .env file
+# ── Rename columns to match Supabase schema ──────────────────────────────────
+df = df.rename(columns={
+    "Ticker":    "name",
+    "Close":     "price",
+    "Open":      "open",
+    "Volume":    "volume",
+})
+
+# Calculate change_in_price from Close - Open
+df["change_in_price"] = df["price"] - df["open"]
+
+# Placeholders for columns yfinance doesn't provide in daily data
+df["market_cap"]  = None
+df["p_to_e_ratio"] = None
+
+# Keep only columns Supabase expects (drop open since it's not in schema)
+df = df[["name", "price", "change_in_price", "market_cap", "volume", "p_to_e_ratio"]]
+print(df.head())
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Round numeric columns to match Supabase types
+df["price"] = df["price"].round(2)
+df["change_in_price"] = df["change_in_price"].round(2)
+df["volume"] = df["volume"].astype(int) # bigint needs whole numbers
+
+url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
 
-supabase: Client = create_client(url, key) #connects to supabase
+supabase: Client = create_client(url, key)
 
-response = (supabase.table("users") # Gets the user information from the supabase table
+# Get users from Supabase
+response = (supabase.table("users")
         .select("*")
         .execute()
 )
+table_df = pd.DataFrame(response.data)
 
-table_df = pd.DataFrame(response.data) # Makes the users into a pandas table for easy changing
+# Upload stock data to Supabase
+response = (
+    supabase.table("stocks")
+    .upsert(df.to_dict('records'))
+    .execute()
+)
+print("Stocks uploaded successfully!")
 
+# ── Flask App ─────────────────────────────────────────────────────────────────
+app = Flask(__name__)
+app.secret_key = 'nananabobo'
 
-
-response = ( # Puts all the stock information into the supabase table
-            supabase.table("stocks")
-            .upsert(df.to_dict('records'))
-            .execute()
-        )
-
-
-
-app = Flask(__name__) # Initiating the flask
-app.secret_key = 'nananabobo' # need a key to be able to use the session dict
-
-#@app.route("/stocks") # Making the route from the main website
-#def stocks(): # Calling the website function
- # return df.to_html() # Making the pandas dataframe into an html thingy
-#  return df.to_json() # to html looks prettier
-
-@app.route('/register', methods=["GET", "POST"]) # the post lets it get info from website
+@app.route('/register', methods=["GET", "POST"])
 def register():
     if request.method == "POST":
         username = request.form.get("username")
-        password = request.form.get("password") # hash the password
-        condition = (table_df['UserN'] == username)
-# The line above gets the username
-        if table_df[condition].any(axis=None): # Should probably check just the username
+        password = request.form.get("password")
+
+        # Check if username already exists
+        condition = (table_df['usern'] == username)
+        if table_df[condition].any(axis=None):
             return render_template("sign_up.html", error="Username already taken!")
 
-        table_df.loc[len(table_df)] = [username, password]#adds it to the table
+        table_df.loc[len(table_df)] = [username, password]
         response = (
             supabase.table("users")
-            .insert({"UserN": username, "PassW": password})
+            .insert({"usern": username, "passw": password})
             .execute()
         )
-        #adds it to the sql table
-        return redirect(url_for("login"))# Goes to the login page
+        return redirect(url_for("login"))
     
     return render_template("sign_up.html")
 
@@ -85,15 +102,14 @@ def register():
 def login():
     if request.method == "POST":
         username = request.form.get("username")
-        password = request.form.get("password")# hash the password
-        condition = (table_df['UserN'] == username) & (table_df['PassW'] == password)
+        password = request.form.get("password")
+        condition = (table_df['usern'] == username) & (table_df['passw'] == password)
 
         print(username)
         print(password)
-# The line above gets the username and password into one variable in the same row 
-        if table_df[condition].any(axis=None): #checks if the username or password is correct
-            session['username'] = username #adds the username to a session dict
-            #That allows for information to be shared in between pages
+
+        if table_df[condition].any(axis=None):
+            session['username'] = username
             return redirect(url_for("dashboard"))
         else:
             return render_template("login.html", error="Invalid username or password")
@@ -102,120 +118,62 @@ def login():
 
 @app.route("/dashboard", methods=["GET", "POST"])
 def dashboard():
-    name = session.get('username')# Gets the username for the current session
-    # All this is to add a button next to each token row
-    # parses the stocks dataframe as an html table to add buttons easily
-    html_table = bs.BeautifulSoup(df.to_html(classes='data')) 
-    rows = html_table.find_all('tr') # Finds each row in the html table
-    first = True # meant to skip the first row which is just headers
+    name = session.get('username')
+
+    # Build stock table with buttons
+    html_table = bs.BeautifulSoup(df.to_html(classes='data'), 'html.parser')
+    rows = html_table.find_all('tr')
+    first = True
     for row in rows:
-        if(first):
-            tag = html_table.new_tag("td", text="New Cell")
+        if first:
+            tag = html_table.new_tag("td")
             tag.string = "Buttons"
             row.append(tag)
             first = False
-
         else:
-            first_tag = html_table.new_tag("button", type = "button")
+            first_tag = html_table.new_tag("button", type="button")
             first_tag.string = "PRESS ME!"
-            tag = html_table.new_tag('td', text='New Cell')
+            tag = html_table.new_tag('td')
             tag.append(first_tag)
             row.append(tag)
 
-    response = (supabase.table("chosen") # Gets the user chosen stocks
+    # Get user's chosen stocks
+    response = (supabase.table("chosen")
         .select("*")
         .execute()
     )
     user_options = pd.DataFrame(response.data)
-    actual_user = user_options.loc[user_options['UserN'] == name] # Gets the stock data of the current user
-    if request.method == "POST": # Waits for the user to type a stock
+    actual_user = user_options.loc[user_options['usern'] == name]
+
+    if request.method == "POST":
         stock = request.form.get("stock")
-        condition = (df['Ticker'] == stock)
-        sCondition = (actual_user['Ticker'] == stock)
-        # Checks if the stock exists and is not an already chosen stock
-        if df[condition].any(axis=None) and not(actual_user[sCondition].any(axis = None)):
+        condition = (df['name'] == stock)
+        sCondition = (actual_user['ticker'] == stock)
+        if df[condition].any(axis=None) and not(actual_user[sCondition].any(axis=None)):
             response = (
-                supabase.table("chosen") # adds the stock to the table
-                .upsert({"UserN": name, "Ticker": stock}, ignore_duplicates = True)
+                supabase.table("chosen")
+                .upsert({"usern": name, "ticker": stock}, ignore_duplicates=True)
                 .execute()
-            )   
-            
-    return render_template("dashboard.html", username = name, tables=[html_table], titles=df.columns.values)
-#Does it as a function call so that dashboard.html has the proper information to display everything
+            )
 
-@app.route("/userstocks")
-def userstocks():
+    return render_template("dashboard.html", username=name, tables=[html_table], titles=df.columns.values)
+
+@app.route("/userStocks")
+def userStocks():
     name = session.get('username')
-    response = (supabase.table("chosen") # Gets the user stock table
+    response = (supabase.table("chosen")
         .select("*")
         .execute()
     )
     user_options = pd.DataFrame(response.data)
-    actual_user = user_options.loc[user_options['UserN'] == name] # Gets all the stocks of the current user
+    actual_user = user_options.loc[user_options['usern'] == name]
 
-    return render_template("userstocks.html", username = name, tables = [actual_user.to_html()], titles= user_options.columns.values)
+    return render_template("userStocks.html", username=name, tables=[actual_user.to_html()], titles=user_options.columns.values)
 
 @app.route("/logout")
 def logout():
+    session.clear()
     return redirect(url_for("login"))
-#goes back to the login page if the logout button is pressed
 
-if __name__ == "__main__": # Running the app in debug mode
+if __name__ == "__main__":
     app.run(debug=True)
-
-
-
-
-#def get_alpha_vantage_symbols(api_key): # Gets all the tickers from a website might have to figure out how to limit it
- #   url = f'https://www.alphavantage.co/query?function=LISTING_STATUS&apikey={api_key}'
-    
-    # Download CSV data
-  #  with requests.get(url) as r:
-   #     data = r.content.decode('utf-8').split('\n')
-    #    # Process and store symbols
-     #   symbols = [line.split(',')[0] for line in data[1:] if line]
-      #  return symbols
-#tickers = get_alpha_vantage_symbols("PI5qAc7UFswiigQSOXmVmT6haKhG0it4")
-#data = pd.DataFrame(columns=tickers) # Uses a pandas dataframe to hold all the symbol data
-#for ticker in tickers: # Gets the ticker data from yfinance but I think it's too many tickers
- #   data[ticker] = yf.download(ticker, auto_adjust=False)['Adj Close']
-#table = soup.find('table', attrs={'class': 'wikitable sortable', 'id': 'constituents'}) # Find the table that has the S&P 500 tickers
-#table = soup.find('table', {'class': 'wikitable sortable'})
-#df.to_csv('sp500_stocks.csv', mode='w+') # Putting it into a csv file for us to see
-# Connecting to the server
-
-#conn = mysql.connector.connect(user = 'root', # Connects to mydatabase
- #                              host = 'localhost',
-  #                             passwd = 'YOUR PASSWORD',
-   #     
-#df.to_sql('TEST', conn, if_exists = 'replace', index = False)
-#exit = False
-#while not exit:
- #  choice = input("Do you want to add a user or login\n1 = add, 2 = login: ")
-
-  # if choice == '1':
-   #   username = input("Input username: ")
-   #   password = input("Input password: ")
-   #   condition = (table_df['UserN'] == username) & (table_df['PassW'] == password)
-
-   #   if table_df[condition].any(axis=None):
-    #     print("Username or Password already exists. please try again!")
-   #   else:
-    #    table_df.loc[len(table_df)] = [username, password]
-    #    table_df.to_sql('users', conn, if_exists = 'replace', index = False)
- #  if choice == '2':
-  #    username = input("Input username: ")
-  #    password = input("Input password: ")
-  #    condition = (table_df['UserN'] == username) & (table_df['PassW'] == password)
-
-  #    if table_df[condition].any(axis=None):
-   #      exit = True
-
-  #    if exit == False:
-   #      print("Wrong username or password please try again")
-#print("Ayy you did it!")          
-
-#s = bcrypt.gensalt() # need it to hash the password
-#conn.close() # Disconnecting from the server      
-
-
