@@ -59,17 +59,18 @@ function Login() {
 
         const res = await fetch("/register", {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({ username, password }),
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
         });
 
+        const data = await res.json();
         setLoading(false);
 
-        if (res.ok || res.redirected) {
+        if (res.ok) {
             setSuccess("Account created! You can now log in.");
             switchMode("login");
         } else {
-            setError("Username already taken.");
+            setError(data.error || "Username already taken.");
         }
     };
 

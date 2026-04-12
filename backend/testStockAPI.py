@@ -85,22 +85,43 @@ app.secret_key = 'nananabobo'
 @app.route('/register', methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
+        # Handle both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+            email = data.get("username") or data.get("email")
+            password = data.get("password")
+        else:
+            email = request.form.get("username") or request.form.get("email")
+            password = request.form.get("password")
 
-        # Check if username already exists
-        condition = (table_df['usern'] == username)
-        if table_df[condition].any(axis=None):
-            return render_template("sign_up.html", error="Username already taken!")
+        print(f"Attempting to register: {email}")  # Debug
 
-        table_df.loc[len(table_df)] = [username, password]
-        response = (
+        if not email or not password:
+            return {"error": "Email and password required"}, 400
+
+        # Query Supabase directly instead of using stale table_df
+        existing = (
             supabase.table("users")
-            .insert({"usern": username, "passw": password})
+            .select("*")
+            .eq("email", email)
             .execute()
         )
+
+        print(f"Existing query result: {existing.data}")  # Debug
+
+        if existing.data:  # Username already exists
+            return render_template("sign_up.html", error="Email already taken!")
+
+        # Insert new user
+        result = supabase.table("users").insert({
+            "email": email,
+            "password": password
+        }).execute()
+
+        print(f"Insert result: {result.data}")  # Debug
+
         return redirect(url_for("login"))
-    
+
     return render_template("sign_up.html")
 
 @app.route("/login", methods=["GET", "POST"])
@@ -108,16 +129,21 @@ def login():
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
-        condition = (table_df['usern'] == username) & (table_df['passw'] == password)
 
-        print(username)
-        print(password)
+        # Query Supabase directly
+        result = (
+            supabase.table("users")
+            .select("*")
+            .eq("email", email)
+            .eq("password", password)
+            .execute()
+        )
 
-        if table_df[condition].any(axis=None):
-            session['username'] = username
+        if result.data:
+            session['username'] = email
             return redirect(url_for("dashboard"))
         else:
-            return render_template("login.html", error="Invalid username or password")
+            return render_template("login.html", error="Invalid email or password")
 
     return render_template("login.html")
 
@@ -148,7 +174,7 @@ def dashboard():
         .execute()
     )
     user_options = pd.DataFrame(response.data)
-    actual_user = user_options.loc[user_options['usern'] == name]
+    actual_user = user_options.loc[user_options['email'] == name]
 
     if request.method == "POST":
         stock = request.form.get("stock")
@@ -157,7 +183,7 @@ def dashboard():
         if df[condition].any(axis=None) and not(actual_user[sCondition].any(axis=None)):
             response = (
                 supabase.table("chosen")
-                .upsert({"usern": name, "ticker": stock}, ignore_duplicates=True)
+                .upsert({"email": name, "ticker": stock}, ignore_duplicates=True)
                 .execute()
             )
 
@@ -171,7 +197,7 @@ def userStocks():
         .execute()
     )
     user_options = pd.DataFrame(response.data)
-    actual_user = user_options.loc[user_options['usern'] == name]
+    actual_user = user_options.loc[user_options['email'] == name]
 
     return render_template("userStocks.html", username=name, tables=[actual_user.to_html()], titles=user_options.columns.values)
 
