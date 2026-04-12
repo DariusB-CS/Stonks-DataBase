@@ -1,0 +1,42 @@
+:root {
+  --bs-body-bg: #3c7a18;
+}
+
+body {
+  background-color: #3c7a18 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#root {
+  background-color: #3c7a18;
+  min-height: 100vh;
+}
+
+.container {
+    background-color: #3c7a18 !important;
+}
+
+.myCol {
+    background-color: #3c7a18;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #111;
+}
+
+.login-container {
+  display: flex;              /* Enables flexbox so we can center things */
+  justify-content: center;    /* Centers horizontally */
+  align-items: center;        /* Centers vertically */
+  height: auto;               /* Makes the container the full height of the screen */
+  padding: 20px 0;              
+}
+
+.login-card {
+  padding: 30px;              /* Adds space inside the card so content isn't squished */
+  background-color: #fff;
+  border-radius: 8px;         /* Rounds the corners of the card */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);   /* Adds a subtle shadow around the card */
+  width: 100%;                /* Takes up full width of its parent */
+  max-width: 400px;           /* But never wider than 400px */
+}
