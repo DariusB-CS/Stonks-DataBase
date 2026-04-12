@@ -35,7 +35,7 @@ key: str = os.environ.get("SUPABASE_KEY")
 
 supabase: Client = create_client(url, key) #connects to supabase
 
-response = (supabase.table("USERS") # Gets the user information from the supabase table
+response = (supabase.table("users") # Gets the user information from the supabase table
         .select("*")
         .execute()
 )
@@ -45,7 +45,7 @@ table_df = pd.DataFrame(response.data) # Makes the users into a pandas table for
 
 
 response = ( # Puts all the stock information into the supabase table
-            supabase.table("STOCKS")
+            supabase.table("stocks")
             .upsert(df.to_dict('records'))
             .execute()
         )
@@ -72,7 +72,7 @@ def register():
 
         table_df.loc[len(table_df)] = [username, password]#adds it to the table
         response = (
-            supabase.table("USERS")
+            supabase.table("users")
             .insert({"UserN": username, "PassW": password})
             .execute()
         )
@@ -122,7 +122,7 @@ def dashboard():
             tag.append(first_tag)
             row.append(tag)
 
-    response = (supabase.table("CHOSEN") # Gets the user chosen stocks
+    response = (supabase.table("chosen") # Gets the user chosen stocks
         .select("*")
         .execute()
     )
@@ -135,7 +135,7 @@ def dashboard():
         # Checks if the stock exists and is not an already chosen stock
         if df[condition].any(axis=None) and not(actual_user[sCondition].any(axis = None)):
             response = (
-                supabase.table("CHOSEN") # adds the stock to the table
+                supabase.table("chosen") # adds the stock to the table
                 .upsert({"UserN": name, "Ticker": stock}, ignore_duplicates = True)
                 .execute()
             )   
@@ -143,17 +143,17 @@ def dashboard():
     return render_template("dashboard.html", username = name, tables=[html_table], titles=df.columns.values)
 #Does it as a function call so that dashboard.html has the proper information to display everything
 
-@app.route("/userStocks")
-def userStocks():
+@app.route("/userstocks")
+def userstocks():
     name = session.get('username')
-    response = (supabase.table("CHOSEN") # Gets the user stock table
+    response = (supabase.table("chosen") # Gets the user stock table
         .select("*")
         .execute()
     )
     user_options = pd.DataFrame(response.data)
     actual_user = user_options.loc[user_options['UserN'] == name] # Gets all the stocks of the current user
 
-    return render_template("userStocks.html", username = name, tables = [actual_user.to_html()], titles= user_options.columns.values)
+    return render_template("userstocks.html", username = name, tables = [actual_user.to_html()], titles= user_options.columns.values)
 
 @app.route("/logout")
 def logout():
@@ -202,7 +202,7 @@ if __name__ == "__main__": # Running the app in debug mode
     #     print("Username or Password already exists. please try again!")
    #   else:
     #    table_df.loc[len(table_df)] = [username, password]
-    #    table_df.to_sql('USERS', conn, if_exists = 'replace', index = False)
+    #    table_df.to_sql('users', conn, if_exists = 'replace', index = False)
  #  if choice == '2':
   #    username = input("Input username: ")
   #    password = input("Input password: ")
