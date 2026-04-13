@@ -156,22 +156,7 @@ def login():
 def dashboard():
     name = session.get('username')
 
-    # Build stock table with buttons
-    html_table = bs.BeautifulSoup(df.to_html(classes='data'), 'html.parser')
-    rows = html_table.find_all('tr')
-    first = True
-    for row in rows:
-        if first:
-            tag = html_table.new_tag("td")
-            tag.string = "Buttons"
-            row.append(tag)
-            first = False
-        else:
-            first_tag = html_table.new_tag("button", type="button")
-            first_tag.string = "PRESS ME!"
-            tag = html_table.new_tag('td')
-            tag.append(first_tag)
-            row.append(tag)
+    
 
     # Get user's chosen stocks
     response = (supabase.table("chosen")
@@ -192,7 +177,15 @@ def dashboard():
                 .execute()
             )
 
-    return render_template("dashboard.html", username=name, tables=[html_table], titles=df.columns.values)
+  
+    temp = df[['name','price','change_in_price','volume','market_cap','p_to_e_ratio']]
+
+    return {"stocks": temp.to_json()}, 200
+
+@app.route("/api/stocks")
+def get_stocks():
+    response = supabase.table("stocks").select("*").execute()
+    return {"stocks": response.data}, 200
 
 @app.route("/userStocks")
 def userStocks():
@@ -213,3 +206,21 @@ def logout():
 
 if __name__ == "__main__":
     app.run(debug=True)
+    
+    # Build stock table with buttons
+#html_table = bs.BeautifulSoup(df.to_html(classes='data'), 'html.parser')
+#    rows = html_table.find_all('tr')
+#    first = True
+#    for row in rows:
+#        if first:
+#            tag = html_table.new_tag("td")
+#            tag.string = "Buttons"
+#            row.append(tag)
+#            first = False
+#        else:
+#            first_tag = html_table.new_tag("button", type="button")
+#            first_tag.string = "PRESS ME!"
+#            tag = html_table.new_tag('td')
+#            tag.append(first_tag)
+#            row.append(tag)
+#    return render_template("dashboard.html", username=name, tables=[html_table], titles=df.columns.values)
