@@ -184,7 +184,7 @@ def dashboard():
         .execute()
     )
     user_options = pd.DataFrame(response.data)
-    actual_user = user_options.loc[user_options['email'] == name]
+    actual_user = user_options.loc[user_options['usern'] == name]
 
     if request.method == "POST":
         stock = request.form.get("stock")
@@ -207,7 +207,7 @@ def userStocks():
         .execute()
     )
     user_options = pd.DataFrame(response.data)
-    actual_user = user_options.loc[user_options['email'] == name]
+    actual_user = user_options.loc[user_options['usern'] == name]
 
     return render_template("userStocks.html", username=name, tables=[actual_user.to_html()], titles=user_options.columns.values)
 
