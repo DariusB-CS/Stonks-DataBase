@@ -6,5 +6,4 @@ backend/sp500_stocks.csv
 testing_supabase/
 /sp500_stocks.csv
 /stock_schema.sql
-react/
 supabase/
