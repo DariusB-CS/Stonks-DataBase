@@ -28,19 +28,24 @@ function Login() {
         setError("");
         setLoading(true);
 
-        const res = await fetch("/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password }),
-        });
+        try {
+            const res = await fetch("/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password }),
+            });
 
-        const data = await res.json();
-        setLoading(false);
+            const data = await res.json();
+            setLoading(false);
 
-        if (res.ok) {
-            window.location.href = "/dashboard";
-        } else {
-            setError(data.error || "Invalid username or password.");
+            if (res.ok) {
+                window.location.href = "/dashboard";
+            } else {
+                setError(data.error || "Invalid username or password.");
+            }
+        } catch (err) {
+            setLoading(false);
+            setError("Something went wrong. Please try again.");
         }
     };
 
@@ -78,7 +83,7 @@ function Login() {
             setLoading(false);
             setError("Something went wrong. Please try again.");
         }
-    }
+    };
 
     return (
         <div className="login-container">
@@ -152,6 +157,5 @@ function Login() {
         </div>
     );
 }
-
 
 export default Login;

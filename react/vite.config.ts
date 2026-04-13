@@ -7,7 +7,6 @@ export default defineConfig({
     proxy: {
       '/login': 'http://127.0.0.1:5000',
       '/register': 'http://127.0.0.1:5000',
-      '/dashboard': 'http://127.0.0.1:5000',
       '/userStocks': 'http://127.0.0.1:5000',
       '/logout': 'http://127.0.0.1:5000',
     }
