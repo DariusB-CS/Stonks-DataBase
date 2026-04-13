@@ -1,6 +1,7 @@
 import yfinance as yf
 import requests
 import pandas as pd
+import uuid
 from sqlalchemy import create_engine
 import bs4 as bs
 from flask import Flask, request, render_template, url_for, redirect, session
@@ -80,40 +81,74 @@ app.secret_key = 'nananabobo'
 @app.route('/register', methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
+        # Handle both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+            email = data.get("username") or data.get("email")
+            password = data.get("password")
+        else:
+            email = request.form.get("username") or request.form.get("email")
+            password = request.form.get("password")
 
-        # Check if username already exists
-        condition = (table_df['email'] == username)
-        if table_df[condition].any(axis=None):
-            return render_template("sign_up.html", error="Username already taken!")
-        id = uuid.uuid1().hex
-        table_df.loc[len(table_df)] = [id,username, password]
-        response = (
+        print(f"Attempting to register: {email}")  # Debug
+
+        if not email or not password:
+            return {"error": "Email and password required"}, 400
+
+        # Query Supabase directly instead of using stale table_df
+        existing = (
             supabase.table("users")
-            .insert({"id":id,"email": username, "password": password})
+            .select("*")
+            .eq("email", email)
             .execute()
         )
-        return redirect(url_for("login"))
-    
+
+        print(f"Existing query result: {existing.data}")  # Debug
+
+        if existing.data:  # Username already exists
+            return {"error": "Email already taken!"}, 409
+
+        # Insert new user
+        result = supabase.table("users").insert({
+            "id": str(uuid.uuid4()),
+            "email": email,
+            "password": password
+        }).execute()
+
+        print(f"Insert result: {result.data}")  # Debug
+
+        return {"success": True}, 200
+
     return render_template("sign_up.html")
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
-        condition = (table_df['email'] == username) & (table_df['password'] == password)
-
-        print(username)
-        print(password)
-
-        if table_df[condition].any(axis=None):
-            print("YAH HAH")
-            session['username'] = username
-            return redirect(url_for("dashboard"))
+        if request.is_json:
+            data = request.get_json()
+            email = data.get("username") or data.get("email")
+            password = data.get("password")
         else:
-            return render_template("login.html", error="Invalid username or password")
+            email = request.form.get("username") or request.form.get("email")
+            password = request.form.get("password")
+
+        print(f"Attempting to login: {email}")
+
+        result = (
+            supabase.table("users")
+            .select("*")
+            .eq("email", email)
+            .eq("password", password)
+            .execute()
+        )
+
+        print(f"Login result: {result.data}")
+
+        if result.data:
+            session['username'] = email
+            return {"success": True}, 200
+        else:
+            return {"error": "Invalid email or password"}, 401
 
     return render_template("login.html")
 
