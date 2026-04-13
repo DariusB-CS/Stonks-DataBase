@@ -9,6 +9,7 @@ import bcrypt
 from supabase import create_client, Client
 import os 
 from dotenv import load_dotenv, dotenv_values
+import uuid
 load_dotenv()
 
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15 Ddg/18.6'}
@@ -59,18 +60,6 @@ key: str = os.environ.get("SUPABASE_KEY")
 
 supabase: Client = create_client(url, key)
 
-# Get users from Supabase
-response = (supabase.table("users")
-        .select("*")
-        .execute()
-)
-table_df = pd.DataFrame(response.data)
-
-# Round numeric columns to match Supabase types
-df["price"] = df["price"].round(2)
-df["change_in_price"] = df["change_in_price"].round(2)
-df["volume"] = df["volume"].astype(int)
-
 # Upload stock data to Supabase
 response = (
     supabase.table("stocks")
@@ -79,14 +68,15 @@ response = (
 )
 print("Stocks uploaded successfully!")
 
+# Get users from Supabase
+response = (supabase.table("users")
+        .select("*")
+        .execute()
+)
+table_df = pd.DataFrame(response.data)
 # ── Flask App ─────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = 'nananabobo'
-
-
-@app.route("/")
-def home():
-    return render_template("login.html")
 
 @app.route('/register', methods=["GET", "POST"])
 def register():
@@ -165,107 +155,56 @@ def login():
 @app.route("/dashboard", methods=["GET", "POST"])
 def dashboard():
     name = session.get('username')
-    if not name:
-        return redirect(url_for("login"))
-
-    if request.method == "POST":
-        stock_name = request.form.get("stock")
-        if stock_name:
-            # 1. Fetch User ID from the 'users' table using the session email
-            user_res = supabase.table("users").select("id").eq("email", name).execute()
-            # 2. Fetch Stock ID and current price from the 'stocks' table
-            stock_res = supabase.table("stocks").select("id", "price").eq("name", stock_name).execute()
-            
-            if user_res.data and stock_res.data:
-                user_id = user_res.data[0]["id"]
-                stock_id = stock_res.data[0]["id"]
-                current_price = stock_res.data[0]["price"]
-
-                # 3. Insert into 'tracked_stocks' referencing the specific IDs
-                supabase.table("tracked_stocks").insert({
-                    "user_id": user_id,
-                    "stock_id": stock_id,
-                    "Price": current_price,
-                }).execute()
-
-        return redirect(url_for("dashboard"))
 
     # Build stock table with buttons
-    html_table = bs.BeautifulSoup(df.to_html(classes='data', index=False), 'html.parser')
+    html_table = bs.BeautifulSoup(df.to_html(classes='data'), 'html.parser')
     rows = html_table.find_all('tr')
+    first = True
+    for row in rows:
+        if first:
+            tag = html_table.new_tag("td")
+            tag.string = "Buttons"
+            row.append(tag)
+            first = False
+        else:
+            first_tag = html_table.new_tag("button", type="button")
+            first_tag.string = "PRESS ME!"
+            tag = html_table.new_tag('td')
+            tag.append(first_tag)
+            row.append(tag)
 
-    for i, row in enumerate(rows):
-        if i == 0:
-            # Header row
-            action_header = html_table.new_tag("th")
-            action_header.string = "Actions"
-            row.append(action_header)
-            continue
-
-        # Skip rows that don't map to df rows
-        if i - 1 >= len(df):
-            continue
-
-        stock_name = df.iloc[i - 1]["name"]
-
-    # Create <form method="POST">
-    form_tag = html_table.new_tag("form", attrs={"method": "POST"})
-
-    # Hidden input
-    input_tag = html_table.new_tag(
-        "input",
-        attrs={
-            "type": "hidden",
-            "name": "stock",
-            "value": stock_name
-        }
+    # Get user's chosen stocks
+    response = (supabase.table("chosen")
+        .select("*")
+        .execute()
     )
+    user_options = pd.DataFrame(response.data)
+    actual_user = user_options.loc[user_options['email'] == name]
 
-    # Submit button
-    button_tag = html_table.new_tag(
-        "button",
-        attrs={"type": "submit"}
-    )
-    button_tag.string = "Track Stock"
-
-    # Assemble form
-    form_tag.append(input_tag)
-    form_tag.append(button_tag)
-
-    # Add form into a new table cell
-    action_cell = html_table.new_tag("td")
-    action_cell.append(form_tag)
-    row.append(action_cell)
-
+    if request.method == "POST":
+        stock = request.form.get("stock")
+        condition = (df['name'] == stock)
+        sCondition = (actual_user['ticker'] == stock)
+        if df[condition].any(axis=None) and not(actual_user[sCondition].any(axis=None)):
+            response = (
+                supabase.table("chosen")
+                .upsert({"email": name, "ticker": stock}, ignore_duplicates=True)
+                .execute()
+            )
 
     return render_template("dashboard.html", username=name, tables=[html_table], titles=df.columns.values)
 
 @app.route("/userStocks")
 def userStocks():
     name = session.get('username')
-    if not name:
-        return redirect(url_for("login"))
-
-    # Fetch the user's ID
-    user_res = supabase.table("users").select("id").eq("email", name).execute()
-    if not user_res.data:
-        return redirect(url_for("logout"))
-    
-    user_id = user_res.data[0]["id"]
-
-    # Fetch tracked stocks joined with details from the 'stocks' table
-    response = (supabase.table("tracked_stocks")
-        .select("Price, created_at, stocks(name, volume, market_cap)")
-        .eq("user_id", user_id)
+    response = (supabase.table("chosen")
+        .select("*")
         .execute()
     )
-    
-    # Flatten the joined data into a readable DataFrame
-    tracked_df = pd.json_normalize(response.data)
-    if not tracked_df.empty:
-        tracked_df.columns = [c.replace('stocks.', '') for c in tracked_df.columns]
+    user_options = pd.DataFrame(response.data)
+    actual_user = user_options.loc[user_options['email'] == name]
 
-    return render_template("userStocks.html", username=name, tables=[tracked_df.to_html(classes='data', index=False)], titles=tracked_df.columns.values)
+    return render_template("userStocks.html", username=name, tables=[actual_user.to_html()], titles=user_options.columns.values)
 
 @app.route("/logout")
 def logout():
