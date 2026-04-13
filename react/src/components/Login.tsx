@@ -30,16 +30,17 @@ function Login() {
 
         const res = await fetch("/login", {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({ username, password }),
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
         });
 
+        const data = await res.json();
         setLoading(false);
 
-        if (res.redirected || res.ok) {
+        if (res.ok) {
             window.location.href = "/dashboard";
         } else {
-            setError("Invalid username or password.");
+            setError(data.error || "Invalid username or password.");
         }
     };
 
@@ -57,22 +58,27 @@ function Login() {
 
         setLoading(true);
 
-        const res = await fetch("/register", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password }),
-        });
+        try {
+            const res = await fetch("/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password }),
+            });
 
-        const data = await res.json();
-        setLoading(false);
+            const data = await res.json();
+            setLoading(false);
 
-        if (res.ok) {
-            setSuccess("Account created! You can now log in.");
-            switchMode("login");
-        } else {
-            setError(data.error || "Username already taken.");
+            if (res.ok) {
+                setSuccess("Account created! You can now log in.");
+                switchMode("login");
+            } else {
+                setError(data.error || "Username already taken.");
+            }
+        } catch (err) {
+            setLoading(false);
+            setError("Something went wrong. Please try again.");
         }
-    };
+    }
 
     return (
         <div className="login-container">
@@ -146,5 +152,6 @@ function Login() {
         </div>
     );
 }
+
 
 export default Login;

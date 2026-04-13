@@ -1,6 +1,7 @@
 import yfinance as yf
 import requests
 import pandas as pd
+import uuid
 from sqlalchemy import create_engine
 import bs4 as bs
 from flask import Flask, request, render_template, url_for, redirect, session
@@ -110,27 +111,34 @@ def register():
         print(f"Existing query result: {existing.data}")  # Debug
 
         if existing.data:  # Username already exists
-            return render_template("sign_up.html", error="Email already taken!")
+            return {"error": "Email already taken!"}, 409
 
         # Insert new user
         result = supabase.table("users").insert({
+            "id": str(uuid.uuid4()),
             "email": email,
             "password": password
         }).execute()
 
         print(f"Insert result: {result.data}")  # Debug
 
-        return redirect(url_for("login"))
+        return {"success": True}, 200
 
     return render_template("sign_up.html")
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
+        if request.is_json:
+            data = request.get_json()
+            email = data.get("username") or data.get("email")
+            password = data.get("password")
+        else:
+            email = request.form.get("username") or request.form.get("email")
+            password = request.form.get("password")
 
-        # Query Supabase directly
+        print(f"Attempting to login: {email}")
+
         result = (
             supabase.table("users")
             .select("*")
@@ -139,11 +147,13 @@ def login():
             .execute()
         )
 
+        print(f"Login result: {result.data}")
+
         if result.data:
             session['username'] = email
-            return redirect(url_for("dashboard"))
+            return {"success": True}, 200
         else:
-            return render_template("login.html", error="Invalid email or password")
+            return {"error": "Invalid email or password"}, 401
 
     return render_template("login.html")
 
