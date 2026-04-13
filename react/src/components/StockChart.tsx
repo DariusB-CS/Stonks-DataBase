@@ -47,28 +47,38 @@ function StockChart({ ticker, onClose }: Props) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
+    //  Track stock function
+    const trackStock = async () => {
+        try {
+            const response = await fetch("http://127.0.0.1:5000/dashboard/userStocks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ ticker })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(`Tracking ${ticker}`);
+            } else {
+                alert(data.error || "Failed to track stock");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Network error");
+        }
+    };
+ 
+
     useEffect(() => {
         setLoading(true);
         setError("");
 
-        // ── Swap for real fetch when backend is ready ──
-        // fetch(`/api/stock/${ticker}`)
-        //     .then((res) => res.json())
-        //     .then((data) => {
-        //         setHistory(data.history);
-        //         setLoading(false);
-        //     })
-        //     .catch(() => {
-        //         setError("Failed to load chart data.");
-        //         setLoading(false);
-        //     });
-
-        // Mock data for now
         setTimeout(() => {
             setHistory(generateMockHistory(ticker));
             setLoading(false);
-        }, 400); // small delay to simulate fetch
-        // ──────────────────────────────────────────────
+        }, 400);
     }, [ticker]);
 
     const isPositive =
@@ -102,12 +112,24 @@ function StockChart({ ticker, onClose }: Props) {
                         </small>
                     )}
                 </div>
-                <button
-                    className="btn btn-sm btn-outline-secondary"
-                    onClick={onClose}
-                >
-                    ✕ Close
-                </button>
+
+                
+                {/* Track button next to Close */}
+                <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                        className="btn btn-sm btn-success"
+                        onClick={trackStock}
+                    >
+                        Track
+                    </button>
+
+                    <button
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={onClose}
+                    >
+                        ✕ Close
+                    </button>
+                </div>
             </div>
 
             {loading ? (
@@ -152,5 +174,6 @@ function StockChart({ ticker, onClose }: Props) {
         </div>
     );
 }
+
 
 export default StockChart;
