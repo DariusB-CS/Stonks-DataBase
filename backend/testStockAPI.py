@@ -83,6 +83,10 @@ print("Stocks uploaded successfully!")
 app = Flask(__name__)
 app.secret_key = 'nananabobo'
 
+@app.route("/")
+def index():
+    return render_template("index.html")
+
 @app.route('/register', methods=["GET", "POST"])
 def register():
     if request.method == "POST":
