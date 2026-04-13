@@ -9,7 +9,6 @@ import bcrypt
 from supabase import create_client, Client
 import os 
 from dotenv import load_dotenv, dotenv_values
-import uuid
 load_dotenv()
 
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15 Ddg/18.6'}
@@ -60,6 +59,18 @@ key: str = os.environ.get("SUPABASE_KEY")
 
 supabase: Client = create_client(url, key)
 
+# Get users from Supabase
+response = (supabase.table("users")
+        .select("*")
+        .execute()
+)
+table_df = pd.DataFrame(response.data)
+
+# Round numeric columns to match Supabase types
+df["price"] = df["price"].round(2)
+df["change_in_price"] = df["change_in_price"].round(2)
+df["volume"] = df["volume"].astype(int)
+
 # Upload stock data to Supabase
 response = (
     supabase.table("stocks")
@@ -68,12 +79,6 @@ response = (
 )
 print("Stocks uploaded successfully!")
 
-# Get users from Supabase
-response = (supabase.table("users")
-        .select("*")
-        .execute()
-)
-table_df = pd.DataFrame(response.data)
 # ── Flask App ─────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = 'nananabobo'
@@ -179,7 +184,7 @@ def dashboard():
         .execute()
     )
     user_options = pd.DataFrame(response.data)
-    actual_user = user_options.loc[user_options['email'] == name]
+    actual_user = user_options.loc[user_options['usern'] == name]
 
     if request.method == "POST":
         stock = request.form.get("stock")
@@ -202,7 +207,7 @@ def userStocks():
         .execute()
     )
     user_options = pd.DataFrame(response.data)
-    actual_user = user_options.loc[user_options['email'] == name]
+    actual_user = user_options.loc[user_options['usern'] == name]
 
     return render_template("userStocks.html", username=name, tables=[actual_user.to_html()], titles=user_options.columns.values)
 
