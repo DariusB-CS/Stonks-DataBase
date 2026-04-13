@@ -211,6 +211,18 @@ def userStocks():
 
     return render_template("userStocks.html", username=name, tables=[actual_user.to_html()], titles=user_options.columns.values)
 
+@app.route("/api/stock/<ticker>")
+def get_stock_history(ticker):
+    data = yf.download(ticker, period="1mo", auto_adjust=False)
+    data = data.reset_index()
+    history = []
+    for _, row in data.iterrows():
+        history.append({
+            "date": str(row["Date"].date()),
+            "price": round(float(row["Close"][ticker]), 2)
+        })
+    return {"history": history}, 200
+
 @app.route("/logout")
 def logout():
     session.clear()

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import StockTicker from "./StockTicker";
+import StockChart from "./StockChart";
 
 interface Stock {
     name: string;
@@ -33,14 +34,20 @@ function Dashboard() {
     const [search, setSearch] = useState("");
     const [filtered, setFiltered] = useState<Stock[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [selectedStock, setSelectedStock] = useState<string | null>(null);
 
     useEffect(() => {
         // ── Swap this block for a real fetch() when backend is ready ──
         // fetch("/api/stocks")
         //     .then((res) => res.json())
         //     .then((data) => {
-        //         setStocks(data);
-        //         setFiltered(data);
+        //         setStocks(data.stocks);
+        //         setFiltered(data.stocks);
+        //         setLoading(false);
+        //     })
+        //     .catch(() => {
+        //         setError("Failed to load stocks.");
         //         setLoading(false);
         //     });
 
@@ -53,9 +60,12 @@ function Dashboard() {
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         const query = e.target.value.toUpperCase();
         setSearch(query);
-        setFiltered(
-            stocks.filter((s) => s.name.toUpperCase().includes(query))
-        );
+        setFiltered(stocks.filter((s) => s.name.toUpperCase().includes(query)));
+        setSelectedStock(null);
+    };
+
+    const handleRowClick = (ticker: string) => {
+        setSelectedStock(selectedStock === ticker ? null : ticker);
     };
 
     const handleLogout = async () => {
@@ -76,10 +86,7 @@ function Dashboard() {
                 <span style={{ color: "#fff", fontSize: "1.5rem", fontWeight: "bold" }}>
                     📈 Social Stonks
                 </span>
-                <button
-                    className="btn btn-outline-light btn-sm"
-                    onClick={handleLogout}
-                >
+                <button className="btn btn-outline-light btn-sm" onClick={handleLogout}>
                     Logout
                 </button>
             </nav>
@@ -90,11 +97,8 @@ function Dashboard() {
                 <div className="row mb-4 g-3">
                     <div className="col-md-4">
                         <div style={{
-                            backgroundColor: "#2d5e12",
-                            borderRadius: "8px",
-                            padding: "20px",
-                            color: "#fff",
-                            textAlign: "center",
+                            backgroundColor: "#2d5e12", borderRadius: "8px",
+                            padding: "20px", color: "#fff", textAlign: "center",
                             boxShadow: "0 4px 12px rgba(0,0,0,0.2)"
                         }}>
                             <h6 style={{ color: "#a8d5a2" }}>Total Stocks</h6>
@@ -103,11 +107,8 @@ function Dashboard() {
                     </div>
                     <div className="col-md-4">
                         <div style={{
-                            backgroundColor: "#2d5e12",
-                            borderRadius: "8px",
-                            padding: "20px",
-                            color: "#00ff9f",
-                            textAlign: "center",
+                            backgroundColor: "#2d5e12", borderRadius: "8px",
+                            padding: "20px", color: "#00ff9f", textAlign: "center",
                             boxShadow: "0 4px 12px rgba(0,0,0,0.2)"
                         }}>
                             <h6 style={{ color: "#a8d5a2" }}>Gainers</h6>
@@ -116,11 +117,8 @@ function Dashboard() {
                     </div>
                     <div className="col-md-4">
                         <div style={{
-                            backgroundColor: "#2d5e12",
-                            borderRadius: "8px",
-                            padding: "20px",
-                            color: "#ff4d6d",
-                            textAlign: "center",
+                            backgroundColor: "#2d5e12", borderRadius: "8px",
+                            padding: "20px", color: "#ff4d6d", textAlign: "center",
                             boxShadow: "0 4px 12px rgba(0,0,0,0.2)"
                         }}>
                             <h6 style={{ color: "#a8d5a2" }}>Losers</h6>
@@ -130,7 +128,7 @@ function Dashboard() {
                 </div>
 
                 {/* Search Bar */}
-                <div className="row mb-4">
+                <div className="row mb-3">
                     <div className="col-md-6 mx-auto">
                         <input
                             type="text"
@@ -147,12 +145,21 @@ function Dashboard() {
                     </div>
                 </div>
 
+                {/* Hint */}
+                <div className="text-center mb-3">
+                    <small style={{ color: "#d4edda" }}>
+                        💡 Click any stock row to view its 30-day price chart
+                    </small>
+                </div>
+
                 {/* Stock Table */}
                 {loading ? (
                     <div className="text-center text-white">
                         <div className="spinner-border" role="status" />
                         <p className="mt-2">Loading stocks...</p>
                     </div>
+                ) : error ? (
+                    <div className="alert alert-danger">{error}</div>
                 ) : (
                     <div className="row">
                         <div className="col">
@@ -174,17 +181,46 @@ function Dashboard() {
                                     <tbody>
                                         {filtered.length > 0 ? (
                                             filtered.map((stock) => (
-                                                <tr key={stock.name}>
-                                                    <td><strong>{stock.name}</strong></td>
-                                                    <td>${stock.price.toFixed(2)}</td>
-                                                    <td style={{
-                                                        color: stock.change_in_price >= 0 ? "#2d5e12" : "#dc3545",
-                                                        fontWeight: "bold"
-                                                    }}>
-                                                        {stock.change_in_price >= 0 ? "▲" : "▼"} {Math.abs(stock.change_in_price).toFixed(2)}
-                                                    </td>
-                                                    <td>{stock.volume.toLocaleString()}</td>
-                                                </tr>
+                                                <>
+                                                    <tr
+                                                        key={stock.name}
+                                                        onClick={() => handleRowClick(stock.name)}
+                                                        style={{
+                                                            cursor: "pointer",
+                                                            backgroundColor: selectedStock === stock.name ? "#f0f7ee" : "",
+                                                            transition: "background-color 0.2s"
+                                                        }}
+                                                    >
+                                                        <td>
+                                                            <strong>{stock.name}</strong>
+                                                            {selectedStock === stock.name && (
+                                                                <span style={{ color: "#2d5e12", marginLeft: "8px", fontSize: "0.8rem" }}>
+                                                                    ▼ chart
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td>${stock.price.toFixed(2)}</td>
+                                                        <td style={{
+                                                            color: stock.change_in_price >= 0 ? "#2d5e12" : "#dc3545",
+                                                            fontWeight: "bold"
+                                                        }}>
+                                                            {stock.change_in_price >= 0 ? "▲" : "▼"} {Math.abs(stock.change_in_price).toFixed(2)}
+                                                        </td>
+                                                        <td>{stock.volume.toLocaleString()}</td>
+                                                    </tr>
+
+                                                    {/* Expandable Chart Row */}
+                                                    {selectedStock === stock.name && (
+                                                        <tr key={`${stock.name}-chart`}>
+                                                            <td colSpan={4} style={{ padding: "0 16px 16px 16px", backgroundColor: "#f9fafb" }}>
+                                                                <StockChart
+                                                                    ticker={stock.name}
+                                                                    onClose={() => setSelectedStock(null)}
+                                                                />
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </>
                                             ))
                                         ) : (
                                             <tr>
