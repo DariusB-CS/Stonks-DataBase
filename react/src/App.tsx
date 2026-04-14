@@ -4,6 +4,7 @@ import Login from "./components/Login";
 import StockTicker from "./components/StockTicker";
 import Banner from "./components/Banner";
 import "./App.css"
+import MonthlyStockPage from "./components/MonthlyStockPage";
 
 function App() {
     return (

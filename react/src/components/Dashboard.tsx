@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import StockTicker from "./StockTicker";
 
 interface Stock {
@@ -254,6 +255,11 @@ function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* View monthly data button */}
+        <Link to="/monthly">
+          <button>View Monthly Data</button>
+        </Link>
 
         {/* Search Bar */}
         <div className="row mb-4">

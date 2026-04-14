@@ -74,6 +74,23 @@ response = (supabase.table("users")
         .execute()
 )
 table_df = pd.DataFrame(response.data)
+<<<<<<< HEAD
+=======
+
+# Round numeric columns to match Supabase types
+df["price"] = df["price"].round(2)
+df["change_in_price"] = df["change_in_price"].round(2)
+df["volume"] = df["volume"].astype(int)
+
+# Upload stock data to Supabase
+response = (
+    supabase.table("stocks")
+    .upsert(df.to_dict('records'), on_conflict="name")
+    .execute()
+)
+print("Stocks uploaded successfully!")
+
+>>>>>>> Paden-branch
 # ── Flask App ─────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = 'nananabobo'
