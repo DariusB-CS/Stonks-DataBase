@@ -38,23 +38,17 @@ function Dashboard() {
     const [selectedStock, setSelectedStock] = useState<string | null>(null);
 
     useEffect(() => {
-        // ── Swap this block for a real fetch() when backend is ready ──
-        // fetch("/api/stocks")
-        //     .then((res) => res.json())
-        //     .then((data) => {
-        //         setStocks(data.stocks);
-        //         setFiltered(data.stocks);
-        //         setLoading(false);
-        //     })
-        //     .catch(() => {
-        //         setError("Failed to load stocks.");
-        //         setLoading(false);
-        //     });
-
-        setStocks(mockStocks);
-        setFiltered(mockStocks);
+        fetch("/api/stocks")
+    .then((res) => res.json())
+    .then((data) => {
+        setStocks(data.stocks);
+        setFiltered(data.stocks);
         setLoading(false);
-        // ─────────────────────────────────────────────────────────────
+    })
+    .catch(() => {
+        setError("Failed to load stocks.");
+        setLoading(false);
+    });
     }, []);
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -51,24 +51,16 @@ function StockChart({ ticker, onClose }: Props) {
         setLoading(true);
         setError("");
 
-        // ── Swap for real fetch when backend is ready ──
-        // fetch(`/api/stock/${ticker}`)
-        //     .then((res) => res.json())
-        //     .then((data) => {
-        //         setHistory(data.history);
-        //         setLoading(false);
-        //     })
-        //     .catch(() => {
-        //         setError("Failed to load chart data.");
-        //         setLoading(false);
-        //     });
-
-        // Mock data for now
-        setTimeout(() => {
-            setHistory(generateMockHistory(ticker));
-            setLoading(false);
-        }, 400); // small delay to simulate fetch
-        // ──────────────────────────────────────────────
+        fetch(`/api/stock/${ticker}`)
+    .then((res) => res.json())
+    .then((data) => {
+        setHistory(data.history);
+        setLoading(false);
+    })
+    .catch(() => {
+        setError("Failed to load chart data.");
+        setLoading(false);
+    });
     }, [ticker]);
 
     const isPositive =

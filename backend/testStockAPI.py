@@ -157,6 +157,11 @@ def login():
 
     return render_template("login.html")
 
+@app.route("/api/stocks")
+def get_stocks():
+    response = supabase.table("stocks").select("*").execute()
+    return {"stocks": response.data}, 200
+
 @app.route("/dashboard", methods=["GET", "POST"])
 def dashboard():
     name = session.get('username')
@@ -218,8 +223,8 @@ def get_stock_history(ticker):
     history = []
     for _, row in data.iterrows():
         history.append({
-            "date": str(row["Date"].date()),
-            "price": round(float(row["Close"][ticker]), 2)
+            "date": str(row["Date"])[:10],
+            "price": round(float(row["Close"]), 2)
         })
     return {"history": history}, 200
 
