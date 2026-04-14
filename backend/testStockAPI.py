@@ -182,10 +182,22 @@ def dashboard():
 
     return {"stocks": temp.to_json()}, 200
 
-@app.route("/api/stocks")
+@app.route("/api/stocks", methods=["GET", "POST"])
 def get_stocks():
     response = supabase.table("stocks").select("*").execute()
+    if request.method == "POST":
+        data = request.get_json()
+        print(data.get("name"))
     return {"stocks": response.data}, 200
+
+@app.route("/api/add", methods=["GET", "POST"])
+def add_stocks():
+    response = supabase.table("stocks").select("*").execute()
+    if request.method == "POST":
+        data = request.get_json()
+        print(data.get("name"))
+    return {"success": True}, 200
+    
 
 @app.route("/userStocks")
 def userStocks():

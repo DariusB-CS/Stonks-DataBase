@@ -163,6 +163,14 @@ function Dashboard() {
     window.location.href = "/";
   };
 
+  const sendStock = async (name: String) => {
+    await fetch("/api/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+  };
+
   const totalGainers = stocks.filter((s) => s.change_in_price >= 0).length;
   const totalLosers = stocks.filter((s) => s.change_in_price < 0).length;
 
@@ -298,6 +306,9 @@ function Dashboard() {
                             {Math.abs(stock.change_in_price).toFixed(2)}
                           </td>
                           <td>{stock.volume.toLocaleString()}</td>
+                          <button onClick={() => sendStock(stock.name)}>
+                            Outlined
+                          </button>
                         </tr>
                       ))
                     ) : (
