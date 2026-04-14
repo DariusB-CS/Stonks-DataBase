@@ -162,6 +162,7 @@ def get_stocks():
 @app.route("/api/add", methods=["GET", "POST"])
 def add_stocks():
     email = session.get('username')
+    print(email)
     if request.method == "POST":
         data = request.get_json()
         ticker = data.get("name")
@@ -195,22 +196,34 @@ def add_stocks():
                 "stock_id": stockid,
                 "ticker": ticker
             }).execute()
-            
+
             return {"success": True}, 200
 
     
 
-@app.route("/userStocks")
+@app.route("/api/userStocks", methods=["GET", "POST"])
 def userStocks():
-    name = session.get('username')
-    response = (supabase.table("chosen")
-        .select("*")
+    email = session.get('username')
+    print(email)
+    userTable = (
+                supabase.table("users")
+                .select("id")
+                .eq("email", email)
+                .execute()
+            )
+    userid = userTable.data[0]['id']
+    response = (supabase.table("tracked_stocks")
+        .select("ticker")
+        .eq("user_id",userid)
         .execute()
     )
     user_options = pd.DataFrame(response.data)
-    actual_user = user_options.loc[user_options['email'] == name]
+    print(user_options)
+    for ticker in user_options['ticker']:
+        print(yf.Ticker(ticker).history(period='1mo'))
+        print(type(yf.Ticker(ticker).history(period='1mo')))
 
-    return render_template("userStocks.html", username=name, tables=[actual_user.to_html()], titles=user_options.columns.values)
+    return 
 
 @app.route("/logout")
 def logout():
