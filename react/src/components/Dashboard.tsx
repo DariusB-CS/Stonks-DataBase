@@ -138,6 +138,7 @@ function Dashboard() {
   const [search, setSearch] = useState("");
   const [filtered, setFiltered] = useState<Stock[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetch("/api/stocks")
@@ -164,11 +165,24 @@ function Dashboard() {
   };
 
   const sendStock = async (name: String) => {
-    await fetch("/api/add", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
+    setError("");
+
+    try {
+      const res = await fetch("/api/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+      } else {
+        setError(data.error || "Invalid username or password.");
+      }
+    } catch (err) {
+      setError("Something went wrong. Please try again.");
+    }
   };
 
   const totalGainers = stocks.filter((s) => s.change_in_price >= 0).length;

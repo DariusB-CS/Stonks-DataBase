@@ -63,7 +63,7 @@ supabase: Client = create_client(url, key)
 # Upload stock data to Supabase
 response = (
     supabase.table("stocks")
-    .upsert(df.to_dict('records'))
+    .upsert(df.to_dict('records'), on_conflict="name",)
     .execute()
 )
 print("Stocks uploaded successfully!")
@@ -152,51 +152,52 @@ def login():
 
     return render_template("login.html")
 
-@app.route("/dashboard", methods=["GET", "POST"])
-def dashboard():
-    name = session.get('username')
 
-    
 
-    # Get user's chosen stocks
-    response = (supabase.table("chosen")
-        .select("*")
-        .execute()
-    )
-    user_options = pd.DataFrame(response.data)
-    actual_user = user_options.loc[user_options['email'] == name]
-
-    if request.method == "POST":
-        stock = request.form.get("stock")
-        condition = (df['name'] == stock)
-        sCondition = (actual_user['ticker'] == stock)
-        if df[condition].any(axis=None) and not(actual_user[sCondition].any(axis=None)):
-            response = (
-                supabase.table("chosen")
-                .upsert({"email": name, "ticker": stock}, ignore_duplicates=True)
-                .execute()
-            )
-
-  
-    temp = df[['name','price','change_in_price','volume','market_cap','p_to_e_ratio']]
-
-    return {"stocks": temp.to_json()}, 200
-
-@app.route("/api/stocks", methods=["GET", "POST"])
+@app.route("/api/stocks")
 def get_stocks():
     response = supabase.table("stocks").select("*").execute()
-    if request.method == "POST":
-        data = request.get_json()
-        print(data.get("name"))
     return {"stocks": response.data}, 200
 
 @app.route("/api/add", methods=["GET", "POST"])
 def add_stocks():
-    response = supabase.table("stocks").select("*").execute()
+    email = session.get('username')
     if request.method == "POST":
         data = request.get_json()
-        print(data.get("name"))
-    return {"success": True}, 200
+        ticker = data.get("name")
+        result = (
+            supabase.table("tracked_stocks")
+            .select("*")
+            .eq("ticker", ticker)
+            .execute()
+        )
+        if result.data:
+            return {"Failure": False}, 401
+        else:
+            userTable = (
+                supabase.table("users")
+                .select("id")
+                .eq("email", email)
+                .execute()
+            )
+            stockTable = (
+                supabase.table("stocks")
+                .select("id")
+                .eq("name", ticker)
+                .execute()
+           )
+            userid = userTable.data[0]['id']
+            stockid = stockTable.data[0]['id']
+            print(type(userid))
+            result = supabase.table("tracked_stocks").insert({
+                "id": str(uuid.uuid4()),
+                "user_id": userid,
+                "stock_id": stockid,
+                "ticker": ticker
+            }).execute()
+            
+            return {"success": True}, 200
+
     
 
 @app.route("/userStocks")
@@ -236,3 +237,32 @@ if __name__ == "__main__":
 #            tag.append(first_tag)
 #            row.append(tag)
 #    return render_template("dashboard.html", username=name, tables=[html_table], titles=df.columns.values)
+#@app.route("/dashboard", methods=["GET", "POST"])
+#def dashboard():
+#    name = session.get('username')
+#
+#    
+#
+#    # Get user's chosen stocks
+#    response = (supabase.table("chosen")
+#        .select("*")
+#        .execute()
+#    )
+#    user_options = pd.DataFrame(response.data)
+#    actual_user = user_options.loc[user_options['email'] == name]
+
+#    if request.method == "POST":
+#        stock = request.form.get("stock")
+#        condition = (df['name'] == stock)
+#        sCondition = (actual_user['ticker'] == stock)
+#        if df[condition].any(axis=None) and not(actual_user[sCondition].any(axis=None)):
+#            response = (
+#                supabase.table("chosen")
+#                .upsert({"email": name, "ticker": stock}, ignore_duplicates=True)
+#                .execute()
+#            )
+#
+  
+#    temp = df[['name','price','change_in_price','volume','market_cap','p_to_e_ratio']]
+
+#    return {"stocks": temp.to_json()}, 200
