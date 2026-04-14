@@ -74,7 +74,7 @@ df["volume"] = df["volume"].astype(int)
 # Upload stock data to Supabase
 response = (
     supabase.table("stocks")
-    .upsert(df.to_dict('records'))
+    .upsert(df.to_dict('records'), on_conflict="name")
     .execute()
 )
 print("Stocks uploaded successfully!")
