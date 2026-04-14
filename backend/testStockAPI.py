@@ -74,23 +74,6 @@ response = (supabase.table("users")
         .execute()
 )
 table_df = pd.DataFrame(response.data)
-<<<<<<< HEAD
-=======
-
-# Round numeric columns to match Supabase types
-df["price"] = df["price"].round(2)
-df["change_in_price"] = df["change_in_price"].round(2)
-df["volume"] = df["volume"].astype(int)
-
-# Upload stock data to Supabase
-response = (
-    supabase.table("stocks")
-    .upsert(df.to_dict('records'), on_conflict="name")
-    .execute()
-)
-print("Stocks uploaded successfully!")
-
->>>>>>> Paden-branch
 # ── Flask App ─────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = 'nananabobo'
@@ -221,7 +204,6 @@ def add_stocks():
 @app.route("/api/userStocks", methods=["GET", "POST"])
 def userStocks():
     email = session.get('username')
-    print(email)
     userTable = (
                 supabase.table("users")
                 .select("id")
@@ -235,12 +217,18 @@ def userStocks():
         .execute()
     )
     user_options = pd.DataFrame(response.data)
-    print(user_options)
+    tickers = []
     for ticker in user_options['ticker']:
-        print(yf.Ticker(ticker).history(period='1mo'))
-        print(type(yf.Ticker(ticker).history(period='1mo')))
-
-    return 
+        tickers.append(ticker)
+    temp = yf.download(tickers, period='1mo', auto_adjust=False)
+    temp = temp.drop("Open", axis=1)
+    temp = temp.drop("Volume", axis=1)
+    temp = temp.dropna()
+    temp = temp.rename(columns={
+    "Ticker":    "name",
+    "Close":     "price",
+    })
+    return {"stocks": temp.to_json()}, 200
 
 @app.route("/logout")
 def logout():
